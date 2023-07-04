@@ -1,0 +1,84 @@
+{
+    "schemas" : [ 
+        {
+            "bsonType": "object",
+            "title": "Movies",
+            "required":[
+                "_id",  
+                "movieID",
+                "imdbID", 
+                "tmdbID", 
+                "title",  
+                "genres"
+            ],
+            "properties": {
+                "_id" : {"bsonType": "number" },
+                "imdbID": {"bsonType" : "number" },
+                "tmdbID": {"bsonType" : "number"},
+                "title": {
+                    "bsonType" : "string",
+                    "maxLength" : 100,
+                    "minLength" : 1
+                },
+                "genres":{"bsonType": "string"},
+                "genome_scores":{
+                    "bsonType" : "array",
+                    "items": {"bsonType":"objectId"}
+                },
+                "tags":{
+                    "bsonType":"array",
+                    "items":{"bsonType": "objectId"}
+                },
+                "ratings":{
+                    "bsonType": "array",
+                    "items": {"bsonType":"objectId"}
+                }
+            }
+        },
+        {
+            "bsonType":"object",
+            "title": "Tags",
+            "required":[
+                "timestamp",
+                "userId"
+            ],
+            "properties":{
+                "timestamp" : {"bsonType": "timestamp"},
+                "userId" : {"bsonType" : "number"},
+                "tag" : {
+                    "bsonType" : "string",
+                    "maxLength" : 250
+                }
+            }
+        },
+        {
+            "bsonType" : "object",
+            "title": "Ratings",
+            "required":[
+                "timestamp",
+                "userId",
+                "rating"
+            ],
+            "properties":{
+                "timestamp" : {"bsonType":"timestamp"},
+                "userId" : {"bsonType":"number"},
+                "rating" : {"bsonType":"number"}
+            }
+        },
+        {
+            "bsonType": "object",
+            "title":"Genome Scores",
+            "required":[
+                "tag",
+                "relevance",
+                "movieIdd"
+            ],
+            "properties":{
+                "tag" : {"bsonType":"string"},
+                "relevance":{"bsonType":"double"},
+                "movieId":{"bsonType":"number"}
+            }
+        }
+    ]
+}
+

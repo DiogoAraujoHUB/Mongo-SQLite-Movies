@@ -1,0 +1,257 @@
+QUERY 2:
+    -> Selecionar filmes similares ao de input, 
+    com base nas tags dos users
+
+    1ª versão
+    verificar as tags mais frequentes de por filme 
+    Obter os filmes cuja tag é a mesma que a do filme de entrada
+
+    [
+        {"$project" : {
+            "_id" : 0,
+            "movieId" : 1,
+            "tag" : {"$toLower" : {"$trim" : {"input": "$tag"}}},
+        }},
+        {"$group" : {
+            "_id" : {
+                "movieid" : "$movieId", 
+                "tag" : "$tag"
+            },
+            "counts" : {"$sum" : 1}
+        }},,
+        {"$group" : {
+            "_id" : "$_id.movieid",
+            "counts" : {"$max" : "$counts"}
+        }},
+        {"$lookup" : {
+            "from" : "Tags",
+            "let" : {
+                "movieid": "$_id", 
+                "counts" : "$counts"
+            },
+            "pipeline" : [
+                {"$project" : {
+                    "_id" : 0,
+                    "movieId" : 1,
+                    "tag" : {"$toLower" : {"$trim" : {"input": "$tag"}}},
+                }},
+                {"$group" : {
+                    "_id" : {
+                        "movieid" : "$movieId", 
+                        "tag" : "$tag"
+                    },
+                    "counts" : {"$sum" : 1}
+                }},
+                {"$match" : {
+                    "$expr" : {
+                        "$and" : [
+                            {"$eq" : ["$_id.movieid", "$$movieid"]},
+                            {"$eq" : ["$counts", "$$counts"]}
+                        ]
+                    }
+                }},
+            ],
+            "as" : "tags"
+        }},
+        {"$unwind":"$tags"},
+        {"$match" : {"_id" : movieid}},
+        {"$lookup" : {
+            "from" : "Tags",
+            "let" : {
+                "movieid" : "$_id",
+                "tag" : "$tags._id.tag"
+            },
+            "pipeline" : [
+                {"$project" : {
+                    "_id" : 0,
+                    "movieId" : 1,
+                    "tag" : {"$toLower" : {"$trim" : {"input": "$tag"}}},
+                }},
+                {"$group" : {
+                    "_id" : {
+                        "movieid" : "$movieId", 
+                        "tag" : "$tag"
+                    },
+                    "counts" : {"$sum" : 1}
+                }},,
+                {"$group" : {
+                    "_id" : "$_id.movieid",
+                    "counts" : {"$max" : "$counts"}
+                }},
+                {"$lookup" : {
+                    "from" : "Tags",
+                    "let" : {
+                        "movieid": "$_id", 
+                        "counts" : "$counts"
+                    },
+                    "pipeline" : [
+                        {"$project" : {
+                            "_id" : 0,
+                            "movieId" : 1,
+                            "tag" : {"$toLower" : {"$trim" : {"input": "$tag"}}},
+                        }},
+                        {"$group" : {
+                            "_id" : {
+                                "movieid" : "$movieId", 
+                                "tag" : "$tag"
+                            },
+                            "counts" : {"$sum" : 1}
+                        }},,
+                        {"$match" : {
+                            "$expr" : {
+                                "$and" : [
+                                    {"$eq" : ["$_id.movieid", "$$movieid"]},
+                                    {"$eq" : ["$counts", "$$counts"]}
+                                ]
+                            }
+                        }},
+                    ],
+                    "as" : "tags"
+                }},
+                {"$unwind":"$tags"},
+                {"$match" : {
+                    "$expr" : {
+                        "$and" : [
+                            {"$ne" : ["$_id", "$$movieid"]},
+                            {"$eq" : ["$tags._id.tag", "$$tag"]}
+                        ]
+                    }
+                }},
+            ],
+            "as" :"matches"
+        }},
+        {"$unwind" : "$matches"},
+        {"$project" : {
+            "_id" : 0,
+            "_id1" : "$_id",
+            "_id2" : "$matches._id",
+        }},
+        {"$sort" : {"_id2": 1}}
+    ]
+
+
+#########--------------------------------#########
+
+
+        Tempo demorado : (> 20 minutos)
+
+
+#########--------------------------------#########
+
+    2ª versão
+    otimizar operação ao criar index
+    sobre { "$toLower" : {"$trim" : "tag"} } não é possível
+
+    criar collation para permitir comparar strings "case insensitive"
+    criar index com essa collation.
+    
+    [
+        {"$group" : {
+            "_id" : {
+                "movieid" : "$movieId", 
+                "tag" : "$tag"
+            },
+            "counts" : {"$sum" : 1}
+        }},,
+        {"$group" : {
+            "_id" : "$_id.movieid",
+            "counts" : {"$max" : "$counts"}
+        }},
+        {"$lookup" : {
+            "from" : "Tags",
+            "let" : {
+                "movieid": "$_id", 
+                "counts" : "$counts"
+            },
+            "pipeline" : [
+                {"$group" : {
+                    "_id" : {
+                        "movieid" : "$movieId", 
+                        "tag" : "$tag"
+                    },
+                    "counts" : {"$sum" : 1}
+                }},
+                {"$match" : {
+                    "$expr" : {
+                        "$and" : [
+                            {"$eq" : ["$_id.movieid", "$$movieid"]},
+                            {"$eq" : ["$counts", "$$counts"]}
+                        ]
+                    }
+                }},
+            ],
+            "as" : "tags"
+        }},
+        {"$unwind":"$tags"},
+        {"$match" : {"_id" : movieid}},
+        {"$lookup" : {
+            "from" : "Tags",
+            "let" : {
+                "movieid" : "$_id",
+                "tag" : "$tags._id.tag"
+            },
+            "pipeline" : [
+                {"$group" : {
+                    "_id" : {
+                        "movieid" : "$movieId", 
+                        "tag" : "$tag"
+                    },
+                    "counts" : {"$sum" : 1}
+                }},,
+                {"$group" : {
+                    "_id" : "$_id.movieid",
+                    "counts" : {"$max" : "$counts"}
+                }},
+                {"$lookup" : {
+                    "from" : "Tags",
+                    "let" : {
+                        "movieid": "$_id", 
+                        "counts" : "$counts"
+                    },
+                    "pipeline" : [
+                        {"$group" : {
+                            "_id" : {
+                                "movieid" : "$movieId", 
+                                "tag" : "$tag"
+                            },
+                            "counts" : {"$sum" : 1}
+                        }},,
+                        {"$match" : {
+                            "$expr" : {
+                                "$and" : [
+                                    {"$eq" : ["$_id.movieid", "$$movieid"]},
+                                    {"$eq" : ["$counts", "$$counts"]}
+                                ]
+                            }
+                        }},
+                    ],
+                    "as" : "tags"
+                }},
+                {"$unwind":"$tags"},
+                {"$match" : {
+                    "$expr" : {
+                        "$and" : [
+                            {"$ne" : ["$_id", "$$movieid"]},
+                            {"$eq" : ["$tags._id.tag", "$$tag"]}
+                        ]
+                    }
+                }},
+            ],
+            "as" :"matches"
+        }},
+        {"$unwind" : "$matches"},
+        {"$project" : {
+            "_id" : 0,
+            "_id1" : "$_id",
+            "_id2" : "$matches._id",
+        }},
+        {"$sort" : {"_id2": 1}}
+    ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 27.78 segundos
+
+
+#########--------------------------------#########

@@ -1,0 +1,192 @@
+QUERY 1:
+    -> Selecionar os filmes que foram identificados com certa genome_tag ordenada pela relevância do filme.
+        # objetivo : verificar se as identificações estão corretas
+    
+    tag selecionada para o teste: "007 (series)"
+
+    1ª versão
+    [   
+            {"$group" : {
+                    "_id" : "$movieId",
+                    "relevance" : {"$max" : "$relevance"},
+                }
+            },
+            {"$lookup" : {
+                "from" : "Genome_Scores",
+                "let" : {"movieid":"$_id", "rel":"$relevance"},
+                "pipeline":[{
+                    "$match" : {"$expr" : {
+                        "$and" : [
+                            {"$eq" : ["$movieId", "$$movieid"]},
+                            {"$eq" : ["$relevance", "$$rel"]}
+                        ]
+                    }}
+                }],
+                "as" : "records"
+                }
+            },
+            {"$unwind" : "$records"},
+            { "$project" : {
+                "_id" : 1,
+                "tag" : "$records.tag"
+            }},
+            {"$match" : {"tag" : tag}},
+            {"$project" : {
+                "_id" : 1,
+            }},
+            {"$lookup" : {
+                "from" : "Ratings",
+                "localField" : "_id",
+                "foreignField" : "movieId",
+                "as" : "rating"
+            }},
+            {"$unwind" : "$rating"},
+            {"$group" : {
+                "_id" : "$_id",
+                "rating" : {"$avg" : "$rating.rating"},
+                "counts" : {"$sum" : 1}
+            }}, 
+            {"$match" : {
+                "counts" : {"$gte" : 100}
+            }},
+            {"$lookup" : {
+                "from" : "Movies",
+                "localField" : "_id",
+                "foreignField" : "_id",
+                "as" : "movie"
+            }},
+            {"$unwind" : "$movie"},
+            {"$project" : {
+                "_id" : 0,
+                "title" : "$movie.title",
+                "rating" : 1
+            }},
+            {"$sort" : {"rating" : -1}}
+        ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : (> 20 minutos)
+
+
+#########--------------------------------#########
+    (redução no número da operação $project)
+    2ª versão
+    [   
+            {"$group" : {
+                    "_id" : "$movieId",
+                    "relevance" : {"$max" : "$relevance"},
+                }
+            },
+            {"$lookup" : {
+                "from" : "Genome_Scores",
+                "let" : {"movieid":"$_id", "rel":"$relevance"},
+                "pipeline":[{
+                    "$match" : {"$expr" : {
+                        "$and" : [
+                            {"$eq" : ["$movieId", "$$movieid"]},
+                            {"$eq" : ["$relevance", "$$rel"]}
+                        ]
+                    }}
+                }],
+                "as" : "records"
+                }
+            },
+            {"$unwind" : "$records"},
+            # { "$match" : {"records.tag" : tag}},
+            { "$project" : {
+                "_id" : 1,
+                "tag" : "$records.tag"
+            }},
+            {"$match" : {"tag" : tag}},
+            {"$project" : {
+                "_id" : 1,
+                # "tag" : 0
+            }},
+            {"$lookup" : {
+                "from" : "Ratings",
+                "localField" : "_id",
+                "foreignField" : "movieId",
+                "as" : "rating"
+            }},
+            {"$unwind" : "$rating"},
+            {"$group" : {
+                "_id" : "$_id",
+                "rating" : {"$avg" : "$rating.rating"},
+                "counts" : {"$sum" : 1}
+            }}, 
+            {"$match" : {
+                "counts" : {"$gte" : 100}
+            }},
+            {"$lookup" : {
+                "from" : "Movies",
+                "localField" : "_id",
+                "foreignField" : "_id",
+                "as" : "movie"
+            }},
+            {"$unwind" : "$movie"},
+            {"$project" : {
+                "_id" : 0,
+                "title" : "$movie.title",
+                "rating" : 1
+            }},
+            {"$sort" : {"rating" : -1}}
+            # {"$limit" : 5}
+        ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 18.95 minutos
+
+
+#########--------------------------------#########
+
+    3ª versão
+    Adicionar compound index "movieId_1_relevance_-1"
+    ordenamento --> movieId - não fará diferença
+                    relevance - query acede maioritariamente aos valores $max, 
+                                pelo que ordenamento decrescente acederá mais rápido 
+    Query = 2ªversão 
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 12.11 segundos
+
+
+#########--------------------------------#########
+
+    4ª versão
+    Adicionar compound index "movieId_hashed_relevance_-1"
+    Tempo demorado similar ao da versão 3. 
+    Em termos de espaço ocupa mais memória, pelo que a versão é preferível
+    
+#########--------------------------------#########
+
+
+        Tempo demorado : 12.24 segundos
+
+
+#########--------------------------------#########
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################
+################################################################
+
+                        Query Plans
+
+################################################################
+################################################################

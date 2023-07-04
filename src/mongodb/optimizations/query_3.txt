@@ -1,0 +1,122 @@
+QUERY 3:
+    -> Obter rating médio do filme especificado, bem como o seu titulo
+
+    1ª versão - através da coleção ratings:
+    [
+        {"$match" : {"movieId" : movieid}},
+        {"$group" : {
+            "_id" : "$movieId",
+            "rating" : {"$avg" : "$rating"}
+        }},
+        {"$lookup" : {
+            "from" : "Movies",
+            "localField" : "_id",
+            "foreignField" : "_id",
+            "as" : "movie"
+        }},
+        {"$unwind" : "$movie"},
+        {"$project" : {
+            "_id" : "$movie.title",
+            "rating" : "$rating"
+        }}
+    ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 11.19 segundos
+
+
+#########--------------------------------#########
+
+    2ª versão - através da coleção movies
+    [
+        {"$match" : {"_id" : movieid}},
+        {"$lookup" : {
+            "from" : "Ratings",
+            "localField" : "_id",
+            "foreignField" : "movieId",
+            "as": "rating"
+        }},
+        {"$unwind" : "$rating"},
+        {"$group" : {
+            "_id" : "$title",
+            "rating" : {"$avg" : "$rating.rating"}
+        }}
+    ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 12.59 segundos
+
+
+#########--------------------------------#########
+
+    3ª versão - através da coleção movies
+    -   Alteração do schema da base de dados,
+        onde os ratings de cada filme são guardados
+        numa lista, como um campo do filme correspondente
+
+    [
+        {"$match" : {"_id" : movieid}},
+        {"$project" : {
+            "_id" : "$title",
+            "rating" : {"$avg" : "$ratings.rating"}
+        }},
+    ]
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 0.045 segundos
+
+
+#########--------------------------------#########
+
+    4ª versão - criada nova coleção de Ratings do tipo cluster.
+                Clustered por id do filme. Apenas contém subset dos dados.
+
+    Correr query igual à presente na versão 1 mas nesta coleção
+
+#########--------------------------------#########
+
+
+        Tempo demorado : 0.12 segundos
+
+
+#########--------------------------------#########
+
+
+
+
+
+
+**************************************************************
+**** Otimização das versões 1 e 2, através de indexagem ******
+**************************************************************
+
+    1ª versão - otimizada com index, "movieId_1"
+    #########--------------------------------#########
+        Tempo demorado : 0.18 segundos
+    #########--------------------------------#########
+
+    1ª versão - otimizada com index hashed, "movieId_hashed
+    #########--------------------------------#########
+        Tempo demorado : 0.19 segundos
+    #########--------------------------------#########
+
+    2ª versão - otimizada com index "movieId_1" na coleção ratings
+    #########--------------------------------#########
+        Tempo demorado : 0.18 segundos
+    #########--------------------------------#########
+
+    2ª versão - otimizada com index "movieId_hashed" na coleção ratings
+    #########--------------------------------#########
+        Tempo demorado : 0.20 segundos
+    #########--------------------------------#########
+
+    2ª versão - utilizada por referência à coleção Ratings Clustered
+    #########--------------------------------#########
+        Tempo demorado : 0.12 segundos
+    #########--------------------------------#########

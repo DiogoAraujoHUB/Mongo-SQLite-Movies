@@ -1,0 +1,50 @@
+version: "3"
+services:
+  #GUI for analyzing SQLite3 database
+  #Access through 'http://localhost:3000'
+  sqlitebrowser:
+    image: lscr.io/linuxserver/sqlitebrowser:latest
+    container_name: sqlitebrowser
+    security_opt:
+      - seccomp:unconfined #optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - ./src/sqlite/database:/config
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+  #Mongo Database instance
+  mongodb:
+    image: mongo
+    restart: always
+    ports:
+      - 27017:27017
+    networks:
+      - backend
+    volumes:
+      - data:/data/db
+      - configs:/data/configdb
+  #GUI for MongoDB
+  #Access through 'http://localhost:8081'
+  mongo-gui:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_URL: mongodb://admin:admin@mongodb:27017/
+    depends_on:
+      - mongodb
+    networks:
+      - backend
+
+networks:
+  backend:
+
+volumes:
+  data:
+  configs:
